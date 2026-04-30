@@ -1,0 +1,11 @@
+{
+  "name": "aurora-face",
+  "private": true,
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "node backend/server.js"
+  },
+  "dependencies": {
+    "playwright": "^1.40.0"
+  }
+}

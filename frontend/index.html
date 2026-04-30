@@ -1,0 +1,2675 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aurora Face · 颜值评分</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%23050510'/%3E%3Ccircle cx='32' cy='32' r='18' fill='none' stroke='%23a78bfa' stroke-width='6'/%3E%3Ccircle cx='40' cy='24' r='6' fill='%2322d3ee' opacity='0.8'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Noto+Sans+SC:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+  <style>
+    /* ═══════════════════════════════════════
+       CSS VARIABLES & RESET
+    ═══════════════════════════════════════ */
+    :root {
+      --bg: #050510;
+      --surface: #0d0d2b;
+      --surface-2: #12123a;
+      --violet: #a78bfa;
+      --cyan: #22d3ee;
+      --rose: #fb7185;
+      --gold: #fbbf24;
+      --glass-border: rgba(167,139,250,0.2);
+      --glass-bg: rgba(13,13,43,0.6);
+      --text: #f8fafc;
+      --text-2: #94a3b8;
+      --text-3: #64748b;
+      --radius: 16px;
+      --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+      --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Noto Sans SC', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    ::selection {
+      background: rgba(167,139,250,0.3);
+      color: #fff;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--bg);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, var(--violet), var(--cyan));
+      border-radius: 3px;
+    }
+
+    /* ═══════════════════════════════════════
+       AURORA BACKGROUND
+    ═══════════════════════════════════════ */
+    #aurora-bg {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .aurora-blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.35;
+      animation: blobFloat 20s ease-in-out infinite;
+    }
+
+    .blob-1 {
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, #a78bfa 0%, transparent 70%);
+      top: -10%; left: -15%;
+      animation-duration: 25s;
+    }
+    .blob-2 {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, #22d3ee 0%, transparent 70%);
+      top: 40%; right: -10%;
+      animation-duration: 20s;
+      animation-delay: -8s;
+    }
+    .blob-3 {
+      width: 450px; height: 450px;
+      background: radial-gradient(circle, #fb7185 0%, transparent 70%);
+      bottom: -5%; left: 30%;
+      animation-duration: 30s;
+      animation-delay: -15s;
+    }
+
+    @keyframes blobFloat {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      25% { transform: translate(60px, -40px) scale(1.1); }
+      50% { transform: translate(-30px, 60px) scale(0.9); }
+      75% { transform: translate(40px, 30px) scale(1.05); }
+    }
+
+    .aurora-streak {
+      position: absolute;
+      width: 2px;
+      height: 200px;
+      background: linear-gradient(180deg, transparent, rgba(167,139,250,0.4), transparent);
+      animation: streakFall linear infinite;
+      opacity: 0;
+    }
+
+    @keyframes streakFall {
+      0% { transform: translateY(-200px); opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { transform: translateY(100vh); opacity: 0; }
+    }
+
+    #noise {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 1;
+      pointer-events: none;
+      opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    }
+
+    #particle-canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    /* ═══════════════════════════════════════
+       MAIN LAYOUT
+    ═══════════════════════════════════════ */
+    .container {
+      position: relative;
+      z-index: 10;
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    /* ═══════════════════════════════════════
+       NAVIGATION
+    ═══════════════════════════════════════ */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px 0;
+      opacity: 0;
+      animation: fadeInUp 0.8s var(--ease-smooth) 0.2s forwards;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: 'Cinzel', serif;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      color: var(--text);
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--violet), var(--cyan));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 20px rgba(167,139,250,0.4);
+      animation: logoPulse 3s ease-in-out infinite;
+    }
+
+    @keyframes logoPulse {
+      0%, 100% { box-shadow: 0 0 20px rgba(167,139,250,0.4); }
+      50% { box-shadow: 0 0 35px rgba(167,139,250,0.7), 0 0 60px rgba(34,211,238,0.3); }
+    }
+
+    .nav-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--glass-border);
+      color: var(--violet);
+      background: rgba(167,139,250,0.08);
+      letter-spacing: 1px;
+    }
+
+    /* ═══════════════════════════════════════
+       HERO SECTION
+    ═══════════════════════════════════════ */
+    .hero {
+      text-align: center;
+      padding: 60px 0 40px;
+      opacity: 0;
+      animation: fadeInUp 0.8s var(--ease-smooth) 0.4s forwards;
+    }
+
+    .hero-title {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(32px, 7vw, 56px);
+      font-weight: 900;
+      line-height: 1.15;
+      letter-spacing: 3px;
+      background: linear-gradient(135deg, var(--violet), var(--cyan), var(--rose), var(--gold));
+      background-size: 300% 300%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: gradientShift 6s ease-in-out infinite;
+      margin-bottom: 16px;
+    }
+
+    @keyframes gradientShift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    .hero-subtitle {
+      font-size: 15px;
+      color: var(--text-2);
+      font-weight: 300;
+      letter-spacing: 1px;
+    }
+
+    .hero-tagline {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 20px;
+      padding: 8px 20px;
+      border-radius: 30px;
+      border: 1px solid var(--glass-border);
+      background: var(--glass-bg);
+      font-size: 13px;
+      color: var(--text-2);
+      backdrop-filter: blur(10px);
+    }
+
+    .hero-tagline span {
+      color: var(--cyan);
+      font-weight: 500;
+    }
+
+    /* ═══════════════════════════════════════
+       FEATURES GRID
+    ═══════════════════════════════════════ */
+    .features {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 40px;
+      opacity: 0;
+      animation: fadeInUp 0.8s var(--ease-smooth) 0.6s forwards;
+    }
+
+    .feature-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 20px 16px;
+      text-align: center;
+      backdrop-filter: blur(10px);
+      transition: all 0.3s var(--ease-spring);
+    }
+
+    .feature-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(167,139,250,0.4);
+      box-shadow: 0 8px 30px rgba(167,139,250,0.1);
+    }
+
+    .feature-icon {
+      width: 40px;
+      height: 40px;
+      margin: 0 auto 10px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .feature-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .feature-desc {
+      font-size: 11px;
+      color: var(--text-3);
+      line-height: 1.5;
+    }
+
+    /* ═══════════════════════════════════════
+       CRYSTAL ORB UPLOAD
+    ═══════════════════════════════════════ */
+    .upload-section {
+      opacity: 0;
+      animation: fadeInUp 0.8s var(--ease-smooth) 0.7s forwards;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 40px;
+    }
+
+    .crystal-orb {
+      position: relative;
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      border: 2px solid var(--glass-border);
+      background: radial-gradient(circle at 30% 30%, rgba(167,139,250,0.15), rgba(34,211,238,0.05), rgba(5,5,16,0.8));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.5s var(--ease-spring);
+      overflow: hidden;
+      backdrop-filter: blur(5px);
+      box-shadow: 0 0 40px rgba(167,139,250,0.1), inset 0 0 40px rgba(167,139,250,0.05);
+    }
+
+    .crystal-orb::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      border-radius: 50%;
+      background: conic-gradient(from 0deg, transparent, rgba(167,139,250,0.3), transparent, rgba(34,211,238,0.3), transparent);
+      animation: orbRotate 8s linear infinite;
+      opacity: 0;
+      transition: opacity 0.5s;
+    }
+
+    .crystal-orb::after {
+      content: '';
+      position: absolute;
+      top: 8px; left: 15%;
+      width: 35%; height: 20%;
+      background: linear-gradient(135deg, rgba(255,255,255,0.3), transparent);
+      border-radius: 50%;
+      filter: blur(2px);
+    }
+
+    @keyframes orbRotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .crystal-orb:hover {
+      transform: scale(1.05);
+      border-color: rgba(167,139,250,0.5);
+      box-shadow: 0 0 60px rgba(167,139,250,0.3), 0 0 100px rgba(34,211,238,0.15), inset 0 0 60px rgba(167,139,250,0.1);
+    }
+
+    .crystal-orb:hover::before {
+      opacity: 1;
+    }
+
+    .crystal-orb.drag-over {
+      transform: scale(1.08);
+      border-color: var(--violet);
+      box-shadow: 0 0 80px rgba(167,139,250,0.5), 0 0 120px rgba(34,211,238,0.3);
+    }
+
+    .crystal-orb.drag-over::before {
+      opacity: 1;
+      animation-duration: 2s;
+    }
+
+    .crystal-orb.has-image {
+      border-color: rgba(167,139,250,0.4);
+    }
+
+    .orb-inner-glow {
+      position: absolute;
+      width: 100px; height: 100px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(167,139,250,0.3), transparent);
+      animation: innerGlow 3s ease-in-out infinite;
+    }
+
+    @keyframes innerGlow {
+      0%, 100% { transform: scale(1); opacity: 0.5; }
+      50% { transform: scale(1.5); opacity: 0.8; }
+    }
+
+    .orb-content {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      pointer-events: none;
+    }
+
+    .orb-icon {
+      width: 48px;
+      height: 48px;
+      opacity: 0.7;
+      transition: opacity 0.3s, transform 0.3s;
+    }
+
+    .crystal-orb:hover .orb-icon {
+      opacity: 1;
+      transform: translateY(-3px);
+    }
+
+    .orb-text {
+      font-size: 14px;
+      color: var(--text-2);
+      text-align: center;
+      font-weight: 400;
+    }
+
+    .orb-text small {
+      display: block;
+      font-size: 11px;
+      color: var(--text-3);
+      margin-top: 4px;
+    }
+
+    #imagePreview {
+      display: none;
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      filter: saturate(1.1) contrast(1.05);
+      z-index: 3;
+    }
+
+    .crystal-orb.has-image .orb-content,
+    .crystal-orb.has-image .orb-inner-glow {
+      display: none;
+    }
+
+    .crystal-orb.has-image #imagePreview {
+      display: block;
+    }
+
+    .crystal-orb.has-image::before {
+      opacity: 0.4;
+    }
+
+    .orb-loading {
+      display: none;
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      border-radius: 50%;
+      background: rgba(5,5,16,0.7);
+      z-index: 5;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .orb-loading.active {
+      display: flex;
+    }
+
+    .orb-spinner {
+      width: 40px; height: 40px;
+      border: 3px solid rgba(167,139,250,0.2);
+      border-top-color: var(--violet);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .orb-loading-text {
+      font-size: 12px;
+      color: var(--text-2);
+    }
+
+    .upload-hint {
+      margin-top: 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 12px;
+      color: var(--text-3);
+    }
+
+    .upload-hint span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .upload-hint svg {
+      width: 14px; height: 14px;
+      opacity: 0.6;
+    }
+
+    #fileInput {
+      display: none;
+    }
+
+    /* ═══════════════════════════════════════
+       CAMERA SECTION
+    ═══════════════════════════════════════ */
+    .camera-section {
+      opacity: 0;
+      animation: fadeInUp 0.8s var(--ease-smooth) 0.85s forwards;
+      margin-bottom: 40px;
+    }
+
+    .camera-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      padding: 32px 28px;
+      backdrop-filter: blur(20px);
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 0 40px rgba(167,139,250,0.06);
+    }
+
+    .camera-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--violet), var(--cyan), transparent);
+    }
+
+    .camera-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .camera-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(167,139,250,0.15), rgba(34,211,238,0.1));
+      border: 1px solid var(--glass-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--cyan);
+    }
+
+    .camera-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .camera-desc {
+      font-size: 13px;
+      color: var(--text-3);
+      line-height: 1.6;
+    }
+
+    .camera-preview-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--glass-border);
+      background: rgba(5,5,16,0.85);
+      margin-bottom: 16px;
+      box-shadow: inset 0 0 60px rgba(167,139,250,0.06), 0 0 24px rgba(34,211,238,0.08);
+    }
+
+    .camera-placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      color: var(--text-3);
+      font-size: 13px;
+      text-align: center;
+      padding: 16px;
+    }
+
+    .camera-preview-wrap.has-stream .camera-placeholder {
+      display: none;
+    }
+
+    .camera-preview-wrap video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: none;
+      transform: scaleX(-1);
+    }
+
+    .camera-preview-wrap.has-stream video {
+      display: block;
+    }
+
+    #cameraCanvas {
+      display: none;
+    }
+
+    .camera-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .camera-btn-primary {
+      padding: 13px 22px;
+      border-radius: 12px;
+      border: none;
+      background: linear-gradient(135deg, var(--violet), var(--cyan));
+      color: white;
+      font-size: 14px;
+      font-family: 'Noto Sans SC', sans-serif;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s var(--ease-spring);
+      white-space: nowrap;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .camera-btn-primary::before {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.5s;
+    }
+
+    .camera-btn-primary:hover::before {
+      left: 100%;
+    }
+
+    .camera-btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px rgba(167,139,250,0.4);
+    }
+
+    .camera-btn-primary:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .camera-btn-ghost {
+      padding: 13px 18px;
+      border-radius: 12px;
+      border: 1px solid var(--glass-border);
+      background: rgba(255,255,255,0.04);
+      color: var(--text-2);
+      font-size: 14px;
+      font-family: 'Noto Sans SC', sans-serif;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s var(--ease-spring);
+      white-space: nowrap;
+      backdrop-filter: blur(10px);
+    }
+
+    .camera-btn-ghost:hover {
+      border-color: rgba(167,139,250,0.45);
+      color: var(--text);
+      background: rgba(167,139,250,0.08);
+    }
+
+    .camera-btn-ghost:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .camera-msg {
+      margin-top: 12px;
+      font-size: 12px;
+      display: none;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .camera-msg.show {
+      display: flex;
+    }
+
+    .camera-msg.error {
+      color: var(--rose);
+    }
+
+    /* ═══════════════════════════════════════
+       ANALYSIS SECTION
+    ═══════════════════════════════════════ */
+    .analysis-section {
+      display: none;
+      margin-bottom: 40px;
+    }
+
+    .analysis-section.visible {
+      display: block;
+      animation: fadeInUp 0.6s var(--ease-smooth);
+    }
+
+    .analysis-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      padding: 28px 24px;
+      backdrop-filter: blur(20px);
+    }
+
+    .analysis-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .analysis-title {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .analysis-title svg {
+      color: var(--violet);
+    }
+
+    .analysis-close {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      border: 1px solid var(--glass-border);
+      background: rgba(167,139,250,0.05);
+      color: var(--text-2);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s;
+    }
+
+    .analysis-close:hover {
+      border-color: var(--rose);
+      color: var(--rose);
+      background: rgba(251,113,133,0.1);
+    }
+
+    .dimensions {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .dimension-item {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+
+    .dimension-item.animate {
+      animation: slideInDim 0.5s var(--ease-smooth) forwards;
+    }
+
+    @keyframes slideInDim {
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .dimension-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .dimension-name {
+      font-size: 13px;
+      color: var(--text-2);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dimension-name .dim-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+    }
+
+    .dimension-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .dimension-bar {
+      height: 4px;
+      border-radius: 2px;
+      background: rgba(255,255,255,0.06);
+      overflow: hidden;
+    }
+
+    .dimension-fill {
+      height: 100%;
+      border-radius: 2px;
+      width: 0%;
+      transition: width 1.2s var(--ease-smooth);
+      position: relative;
+    }
+
+    .dimension-fill::after {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 20px; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4));
+      animation: shimmer 1.5s ease-in-out infinite;
+    }
+
+    @keyframes shimmer {
+      0%, 100% { opacity: 0; }
+      50% { opacity: 1; }
+    }
+
+    /* ═══════════════════════════════════════
+       SCORE REVEAL
+    ═══════════════════════════════════════ */
+    .score-section {
+      display: none;
+      margin-bottom: 40px;
+    }
+
+    .score-section.visible {
+      display: block;
+    }
+
+    .score-orb-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 0;
+    }
+
+    .score-orb {
+      position: relative;
+      width: 220px;
+      height: 220px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 32px;
+    }
+
+    .score-orb-ring {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+    }
+
+    .score-orb-ring svg {
+      width: 100%; height: 100%;
+      transform: rotate(-90deg);
+    }
+
+    .score-orb-ring circle {
+      fill: none;
+      stroke-width: 3;
+      stroke-linecap: round;
+    }
+
+    .ring-bg {
+      stroke: rgba(167,139,250,0.1);
+    }
+
+    .ring-progress {
+      stroke: url(#ringGradient);
+      stroke-dasharray: 628;
+      stroke-dashoffset: 628;
+      transition: stroke-dashoffset 2s var(--ease-smooth);
+      filter: drop-shadow(0 0 8px rgba(167,139,250,0.6));
+    }
+
+    .score-orb-center {
+      position: relative;
+      width: 170px;
+      height: 170px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, rgba(167,139,250,0.2), rgba(5,5,16,0.9));
+      border: 1px solid var(--glass-border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 40px rgba(167,139,250,0.15), inset 0 0 30px rgba(167,139,250,0.05);
+      overflow: hidden;
+    }
+
+    .score-orb-center::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: conic-gradient(from 0deg, transparent, rgba(251,191,36,0.2), transparent, rgba(167,139,250,0.2), transparent);
+      animation: orbRotate 6s linear infinite;
+      opacity: 0;
+      transition: opacity 0.5s;
+    }
+
+    .score-orb-container.reveal .score-orb-center::before {
+      opacity: 1;
+    }
+
+    .score-number {
+      font-family: 'Cinzel', serif;
+      font-size: 56px;
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--gold), #fde68a, var(--gold));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+      opacity: 0;
+      transform: scale(0.5);
+      transition: all 0.8s var(--ease-spring) 1.5s;
+    }
+
+    .score-orb-container.reveal .score-number {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .score-label {
+      font-size: 12px;
+      color: var(--text-3);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      font-family: 'Cinzel', serif;
+      margin-top: 4px;
+      opacity: 0;
+      transition: opacity 0.5s var(--ease-smooth) 2s;
+    }
+
+    .score-orb-container.reveal .score-label {
+      opacity: 1;
+    }
+
+    .score-orb-glow {
+      position: absolute;
+      width: 100%; height: 100%;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(251,191,36,0.2), transparent 60%);
+      opacity: 0;
+      transition: opacity 1s;
+    }
+
+    .score-orb-container.reveal .score-orb-glow {
+      opacity: 1;
+      animation: scoreGlow 2s ease-in-out infinite;
+    }
+
+    @keyframes scoreGlow {
+      0%, 100% { transform: scale(1); opacity: 0.8; }
+      50% { transform: scale(1.2); opacity: 1; }
+    }
+
+    .score-comment {
+      text-align: center;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.8s var(--ease-smooth) 2.0s;
+      margin-bottom: 24px;
+    }
+
+    .score-orb-container.reveal .score-comment {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ── 颜值等级徽章 ── */
+    .score-rank {
+      opacity: 0;
+      transform: scale(0.7) translateY(16px);
+      transition: all 0.7s var(--ease-spring) 1.7s;
+      margin-bottom: 28px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .score-orb-container.reveal .score-rank {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+
+    .rank-badge {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 36px;
+      border-radius: 40px;
+      font-family: 'Cinzel', serif;
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      border: 1.5px solid transparent;
+      background-clip: padding-box;
+    }
+
+    .rank-badge::before {
+      content: '';
+      position: absolute;
+      inset: -1.5px;
+      border-radius: 40px;
+      padding: 1.5px;
+      background: linear-gradient(135deg, var(--rank-from), var(--rank-via), var(--rank-to));
+      -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+    }
+
+    .rank-badge::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 40px;
+      background: linear-gradient(135deg, var(--rank-from), var(--rank-to));
+      opacity: 0.12;
+      filter: blur(8px);
+    }
+
+    .rank-badge-inner {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .rank-icon {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+
+    .rank-range {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0;
+      opacity: 0.7;
+      font-weight: 400;
+    }
+
+    /* 各等级配色 */
+    .rank-D { --rank-from: #94a3b8; --rank-to: #64748b; --rank-via: #94a3b8; }
+    .rank-C { --rank-from: #60a5fa; --rank-to: #3b82f6; --rank-via: #93c5fd; }
+    .rank-B { --rank-from: #34d399; --rank-to: #10b981; --rank-via: #6ee7b7; }
+    .rank-A { --rank-from: #fb923c; --rank-to: #f97316; --rank-via: #fdba74; }
+    .rank-S { --rank-from: #a78bfa; --rank-to: #22d3ee; --rank-via: #c4b5fd; }
+    .rank-SS { --rank-from: #fb7185; --rank-to: #fbbf24; --rank-via: #fde68a; }
+    .rank-SSS { --rank-from: #fbbf24; --rank-to: #fb7185; --rank-via: #fde68a; animation: rankShimmer 2s ease-in-out infinite; }
+
+    @keyframes rankShimmer {
+      0%, 100% { filter: brightness(1) drop-shadow(0 0 6px #fbbf24); }
+      50% { filter: brightness(1.3) drop-shadow(0 0 12px #fb7185); }
+    }
+
+    .rank-label {
+      font-size: 12px;
+      color: var(--text-3);
+      letter-spacing: 1px;
+    }
+
+    .comment-title {
+      font-family: 'Cinzel', serif;
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, var(--violet), var(--cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .comment-text {
+      font-size: 14px;
+      color: var(--text-2);
+      line-height: 1.8;
+    }
+
+    .radar-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 24px;
+      opacity: 0;
+      transform: scale(0.8);
+      transition: all 0.8s var(--ease-spring) 2.5s;
+    }
+
+    .radar-container > * {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+    }
+
+    .score-orb-container.reveal .radar-container {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .radar-canvas {
+      border-radius: 50%;
+      display: block;
+    }
+
+    .radar-wrap {
+      position: relative;
+      display: inline-block;
+      width: 220px;
+      height: 220px;
+      margin: 0 auto;
+    }
+
+    .radar-labels {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .radar-label {
+      position: absolute;
+      font-size: 11px;
+      color: var(--text-2);
+      white-space: nowrap;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      line-height: 1.3;
+    }
+
+    .radar-label strong {
+      display: block;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--violet);
+      font-size: 12px;
+    }
+
+    .score-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.5s var(--ease-smooth) 3s;
+    }
+
+    .score-orb-container.reveal .score-actions {
+      opacity: 1;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: 30px;
+      border: none;
+      font-size: 14px;
+      font-family: 'Noto Sans SC', sans-serif;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s var(--ease-spring);
+      text-decoration: none;
+    }
+
+    .btn svg {
+      width: 16px; height: 16px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--violet), var(--cyan));
+      color: white;
+      box-shadow: 0 4px 20px rgba(167,139,250,0.3);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 30px rgba(167,139,250,0.5);
+    }
+
+    .btn-ghost {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--glass-border);
+      color: var(--text-2);
+      backdrop-filter: blur(10px);
+    }
+
+    .btn-ghost:hover {
+      background: rgba(167,139,250,0.1);
+      border-color: var(--violet);
+      color: var(--text);
+      transform: translateY(-2px);
+    }
+
+    /* ═══════════════════════════════════════
+       FOOTER
+    ═══════════════════════════════════════ */
+    footer {
+      text-align: center;
+      padding: 40px 0;
+      opacity: 0;
+      animation: fadeInUp 0.8s var(--ease-smooth) 1s forwards;
+    }
+
+    .footer-divider {
+      width: 60px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--glass-border), transparent);
+      margin: 0 auto 20px;
+    }
+
+    footer p {
+      font-size: 12px;
+      color: var(--text-3);
+      line-height: 1.8;
+    }
+
+    footer a {
+      color: var(--violet);
+      text-decoration: none;
+      transition: color 0.3s;
+    }
+
+    footer a:hover {
+      color: var(--cyan);
+    }
+
+    /* ═══════════════════════════════════════
+       ANIMATIONS
+    ═══════════════════════════════════════ */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* ═══════════════════════════════════════
+       CONFIRM MODAL
+    ═══════════════════════════════════════ */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(5,5,16,0.85);
+      backdrop-filter: blur(10px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 32px;
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+      animation: modalIn 0.4s var(--ease-spring);
+    }
+
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(0.9) translateY(20px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .modal h3 {
+      font-family: 'Cinzel', serif;
+      font-size: 20px;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, var(--violet), var(--cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .modal p {
+      font-size: 14px;
+      color: var(--text-2);
+      margin-bottom: 24px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    /* ═══════════════════════════════════════
+       TOAST
+    ═══════════════════════════════════════ */
+    .app-toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(12px);
+      z-index: 2000;
+      padding: 12px 24px;
+      border-radius: 12px;
+      border: 1px solid var(--glass-border);
+      background: rgba(13,13,43,0.94);
+      backdrop-filter: blur(16px);
+      color: var(--cyan);
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s var(--ease-smooth), transform 0.35s var(--ease-spring);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      white-space: nowrap;
+    }
+
+    .app-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ═══════════════════════════════════════
+       RESPONSIVE
+    ═══════════════════════════════════════ */
+    @media (max-width: 600px) {
+      .container {
+        padding: 0 16px 60px;
+      }
+
+      .hero {
+        padding: 40px 0 30px;
+      }
+
+      .crystal-orb {
+        width: 200px;
+        height: 200px;
+      }
+
+      .features {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+
+      .feature-card {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        text-align: left;
+        padding: 16px;
+      }
+
+      .feature-icon {
+        margin: 0;
+        flex-shrink: 0;
+      }
+
+      .score-orb {
+        width: 180px;
+        height: 180px;
+      }
+
+      .score-orb-center {
+        width: 140px;
+        height: 140px;
+      }
+
+      .score-number {
+        font-size: 44px;
+      }
+
+      .camera-actions {
+        flex-direction: column;
+      }
+
+      .camera-btn-primary,
+      .camera-btn-ghost {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .score-actions {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .btn {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Aurora Background -->
+  <div id="aurora-bg">
+    <div class="aurora-blob blob-1"></div>
+    <div class="aurora-blob blob-2"></div>
+    <div class="aurora-blob blob-3"></div>
+    <div id="aurora-streaks"></div>
+  </div>
+  <canvas id="particle-canvas"></canvas>
+  <div id="noise"></div>
+
+  <div class="container">
+
+    <!-- Navigation -->
+    <nav>
+      <div class="logo">
+        <div class="logo-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+        </div>
+        AURORA FACE
+      </div>
+      <div class="nav-badge">AI POWERED</div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero">
+      <h1 class="hero-title">Aurora Face</h1>
+      <p class="hero-subtitle">用人工智能，窥见你的极光之美</p>
+      <div class="hero-tagline">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        本地检测 + AI 评分 · 图片仅分析期间短暂传输 · 不持久保存
+      </div>
+    </section>
+
+    <!-- Features -->
+    <div class="features">
+      <div class="feature-card">
+        <div class="feature-icon" style="background: linear-gradient(135deg, rgba(167,139,250,0.2), rgba(167,139,250,0.05));">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round">
+            <circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+        </div>
+        <div>
+          <div class="feature-name">极光水晶美学</div>
+          <div class="feature-desc">流光粒子 · 沉浸体验</div>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background: linear-gradient(135deg, rgba(34,211,238,0.2), rgba(34,211,238,0.05));">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+          </svg>
+        </div>
+        <div>
+          <div class="feature-name">AI 人脸检测</div>
+          <div class="feature-desc">68 特征点精准分析</div>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background: linear-gradient(135deg, rgba(251,113,133,0.2), rgba(251,113,133,0.05));">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fb7185" stroke-width="2" stroke-linecap="round">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="feature-name">五维颜值评分</div>
+          <div class="feature-desc">对称 · 协调 · 精致 · 气质 · 魅力</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upload Section -->
+    <section class="upload-section" id="uploadSection">
+      <div class="crystal-orb" id="crystalOrb" role="button" tabindex="0" aria-label="上传照片进行颜值评分">
+        <div class="orb-inner-glow"></div>
+        <div class="orb-content" id="orbContent">
+          <svg class="orb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <div class="orb-text">
+            点击或拖拽上传照片
+            <small>JPG · PNG · WebP (≤10MB)</small>
+          </div>
+        </div>
+        <img id="imagePreview" alt="预览">
+        <div class="orb-loading" id="orbLoading">
+          <div class="orb-spinner"></div>
+          <span class="orb-loading-text" id="loadingText">正在加载 AI 模型...</span>
+        </div>
+      </div>
+      <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp">
+
+      <div class="upload-hint">
+        <span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          请上传清晰正面照以获得最佳分析效果
+        </span>
+      </div>
+    </section>
+
+    <!-- Camera Section -->
+    <section class="camera-section" id="cameraSection">
+      <div class="camera-card">
+        <div class="camera-header">
+          <div class="camera-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+          </div>
+          <div>
+            <div class="camera-title">极光取景</div>
+            <p class="camera-desc">调用设备摄像头实时预览，一键拍摄并进入颜值分析（画面仅本地处理，不上传）</p>
+          </div>
+        </div>
+        <div class="camera-preview-wrap" id="cameraPreviewWrap">
+          <div class="camera-placeholder" id="cameraPlaceholder">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.35">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+            <span>点击下方「开启摄像头」开始取景</span>
+          </div>
+          <video id="cameraVideo" playsinline muted autoplay></video>
+        </div>
+        <canvas id="cameraCanvas"></canvas>
+        <div class="camera-actions">
+          <button type="button" class="camera-btn-primary" id="cameraStartBtn">开启摄像头</button>
+          <button type="button" class="camera-btn-primary" id="cameraCaptureBtn" disabled>拍照并分析</button>
+          <button type="button" class="camera-btn-ghost" id="cameraStopBtn" disabled>关闭摄像头</button>
+        </div>
+        <div class="camera-msg error" id="cameraMsg"></div>
+      </div>
+    </section>
+
+    <!-- Analysis Section -->
+    <section class="analysis-section" id="analysisSection">
+      <div class="analysis-card">
+        <div class="analysis-header">
+          <div class="analysis-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            AI 颜值分析中
+            <span style="font-size:11px; margin-left:6px; color:var(--cyan); opacity:0.7;">+ Vision AI</span>
+          </div>
+          <button class="analysis-close" id="analysisClose" title="重新上传">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <div class="dimensions">
+          <div class="dimension-item" id="dimSym">
+            <div class="dimension-label">
+              <span class="dimension-name">
+                <span class="dim-dot" style="background:var(--violet)"></span>
+                对称度 Symmetry
+              </span>
+              <span class="dimension-value" style="color:var(--violet)" id="symVal">--</span>
+            </div>
+            <div class="dimension-bar">
+              <div class="dimension-fill" id="symBar" style="background:linear-gradient(90deg,#a78bfa,#7c3aed)"></div>
+            </div>
+          </div>
+
+          <div class="dimension-item" id="dimHar">
+            <div class="dimension-label">
+              <span class="dimension-name">
+                <span class="dim-dot" style="background:var(--cyan)"></span>
+                协调度 Harmony
+              </span>
+              <span class="dimension-value" style="color:var(--cyan)" id="harVal">--</span>
+            </div>
+            <div class="dimension-bar">
+              <div class="dimension-fill" id="harBar" style="background:linear-gradient(90deg,#22d3ee,#0891b2)"></div>
+            </div>
+          </div>
+
+          <div class="dimension-item" id="dimRef">
+            <div class="dimension-label">
+              <span class="dimension-name">
+                <span class="dim-dot" style="background:var(--rose)"></span>
+                精致度 Refinement
+              </span>
+              <span class="dimension-value" style="color:var(--rose)" id="refVal">--</span>
+            </div>
+            <div class="dimension-bar">
+              <div class="dimension-fill" id="refBar" style="background:linear-gradient(90deg,#fb7185,#e11d48)"></div>
+            </div>
+          </div>
+
+          <div class="dimension-item" id="dimAura">
+            <div class="dimension-label">
+              <span class="dimension-name">
+                <span class="dim-dot" style="background:var(--gold)"></span>
+                气质美 Aura
+              </span>
+              <span class="dimension-value" style="color:var(--gold)" id="auraVal">--</span>
+            </div>
+            <div class="dimension-bar">
+              <div class="dimension-fill" id="auraBar" style="background:linear-gradient(90deg,#fbbf24,#d97706)"></div>
+            </div>
+          </div>
+
+          <div class="dimension-item" id="dimCharm">
+            <div class="dimension-label">
+              <span class="dimension-name">
+                <span class="dim-dot" style="background:#e879f9"></span>
+                魅力值 Charm
+              </span>
+              <span class="dimension-value" style="color:#e879f9" id="charmVal">--</span>
+            </div>
+            <div class="dimension-bar">
+              <div class="dimension-fill" id="charmBar" style="background:linear-gradient(90deg,#e879f9,#a855f7)"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Score Section -->
+    <section class="score-section" id="scoreSection">
+      <div class="score-orb-container" id="scoreOrbContainer">
+        <div class="score-orb">
+          <div class="score-orb-ring">
+            <svg viewBox="0 0 220 220">
+              <defs>
+                <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#a78bfa"/>
+                  <stop offset="50%" stop-color="#fbbf24"/>
+                  <stop offset="100%" stop-color="#fb7185"/>
+                </linearGradient>
+              </defs>
+              <circle class="ring-bg" cx="110" cy="110" r="100"/>
+              <circle class="ring-progress" id="ringProgress" cx="110" cy="110" r="100"/>
+            </svg>
+          </div>
+          <div class="score-orb-center">
+            <div class="score-orb-glow"></div>
+            <div class="score-number" id="scoreNumber">0</div>
+            <div class="score-label">颜 值</div>
+          </div>
+        </div>
+
+        <div class="score-comment">
+          <div class="comment-title" id="commentTitle"></div>
+          <p class="comment-text" id="commentText"></p>
+        </div>
+
+        <!-- 颜值等级徽章 -->
+        <div class="score-rank" id="scoreRank">
+          <div class="rank-badge rank-D" id="rankBadge">
+            <div class="rank-badge-inner">
+              <svg class="rank-icon" id="rankIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+              <span id="rankLetter">D</span>
+              <span class="rank-range" id="rankRange">0–49</span>
+            </div>
+          </div>
+          <div class="rank-label" id="rankLabel">凡尘之姿</div>
+        </div>
+
+        <div class="radar-wrap">
+          <canvas class="radar-canvas" id="radarCanvas" width="220" height="220"></canvas>
+          <div class="radar-labels" id="radarLabels"></div>
+        </div>
+
+        <div class="score-actions">
+          <button class="btn btn-primary" id="tryAgainBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            再测一次
+          </button>
+          <button class="btn btn-ghost" id="shareBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            分享结果
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <div class="footer-divider"></div>
+      <p>Aurora Face · 基于 TensorFlow.js + face-api.js + 豆包 Vision AI 构建</p>
+      <p>所有分析均在本地设备完成，数据不会上传至任何服务器</p>
+      <p style="margin-top:8px; color: var(--text-3);">
+        灵感来源：
+        <a href="https://github.com/mcwlgzs/amuchen-coming-soon" target="_blank">amuchen-coming-soon</a> ·
+        <a href="https://github.com/PY-Learning/faceworks" target="_blank">faceworks</a> ·
+        <a href="https://github.com/whx123/microsoft-ice-score" target="_blank">microsoft-ice-score</a> ·
+        <a href="https://github.com/koala9527/face_rank" target="_blank">face_rank</a>
+      </p>
+    </footer>
+  </div>
+
+  <div id="appToast" class="app-toast"></div>
+
+  <!-- Confirm Modal -->
+  <div class="modal-overlay" id="confirmModal">
+    <div class="modal">
+      <h3>重新上传？</h3>
+      <p>即将清除当前分析结果，是否继续？</p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="modalCancel">取消</button>
+        <button class="btn btn-primary" id="modalConfirm">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.min.js"></script>
+  <script>
+    /* ═══════════════════════════════════════
+       PARTICLE SYSTEM
+    ═══════════════════════════════════════ */
+    (function initParticles() {
+      const canvas = document.getElementById('particle-canvas');
+      const ctx = canvas.getContext('2d');
+      let particles = [];
+      let mouse = { x: -1000, y: -1000 };
+      const PARTICLE_COUNT = 80;
+      const CONNECTION_DIST = 120;
+
+      function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
+      resize();
+      window.addEventListener('resize', resize);
+      document.addEventListener('mousemove', e => {
+        mouse.x = e.clientX;
+        mouse.y = e.clientY;
+      });
+
+      class Particle {
+        constructor() { this.reset(); }
+        reset() {
+          this.x = Math.random() * canvas.width;
+          this.y = Math.random() * canvas.height;
+          this.vx = (Math.random() - 0.5) * 0.3;
+          this.vy = (Math.random() - 0.5) * 0.3;
+          this.r = Math.random() * 1.5 + 0.5;
+          this.alpha = Math.random() * 0.5 + 0.2;
+        }
+        update() {
+          this.x += this.vx;
+          this.y += this.vy;
+          const dx = this.x - mouse.x;
+          const dy = this.y - mouse.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 100) {
+            const force = (100 - dist) / 100;
+            this.x += (dx / dist) * force * 2;
+            this.y += (dy / dist) * force * 2;
+          }
+          if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+          if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+          if (this.x < 0) this.x = canvas.width;
+          if (this.y < 0) this.y = canvas.height;
+          if (this.x > canvas.width) this.x = 0;
+          if (this.y > canvas.height) this.y = 0;
+        }
+        draw() {
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(200, 200, 255, ${this.alpha})`;
+          ctx.fill();
+        }
+      }
+
+      for (let i = 0; i < PARTICLE_COUNT; i++) particles.push(new Particle());
+
+      function drawConnections() {
+        for (let i = 0; i < particles.length; i++) {
+          for (let j = i + 1; j < particles.length; j++) {
+            const dx = particles[i].x - particles[j].x;
+            const dy = particles[i].y - particles[j].y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < CONNECTION_DIST) {
+              const opacity = (1 - dist / CONNECTION_DIST) * 0.15;
+              ctx.beginPath();
+              ctx.moveTo(particles[i].x, particles[i].y);
+              ctx.lineTo(particles[j].x, particles[j].y);
+              ctx.strokeStyle = `rgba(167, 139, 250, ${opacity})`;
+              ctx.lineWidth = 0.5;
+              ctx.stroke();
+            }
+          }
+        }
+      }
+
+      function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(p => { p.update(); p.draw(); });
+        drawConnections();
+        requestAnimationFrame(animate);
+      }
+      animate();
+    })();
+
+    /* ═══════════════════════════════════════
+       AURORA STREAKS
+    ═══════════════════════════════════════ */
+    (function createStreaks() {
+      const container = document.getElementById('aurora-streaks');
+      for (let i = 0; i < 5; i++) {
+        const streak = document.createElement('div');
+        streak.className = 'aurora-streak';
+        streak.style.left = Math.random() * 100 + '%';
+        streak.style.animationDuration = (Math.random() * 8 + 6) + 's';
+        streak.style.animationDelay = (Math.random() * 10) + 's';
+        const colors = ['#a78bfa', '#22d3ee', '#fb7185', '#fbbf24'];
+        streak.style.background = `linear-gradient(180deg, transparent, ${colors[i % colors.length]}66, transparent)`;
+        container.appendChild(streak);
+      }
+    })();
+
+    /* ═══════════════════════════════════════
+       STATE
+    ═══════════════════════════════════════ */
+    let currentScores = null;
+    let modelLoaded = false;
+    let isAnalyzing = false;
+    let currentImageRecord = null;
+    let currentAiComplement = null;
+    const AUTO_SAVE_THRESHOLD = 70;
+
+    function createImageRecord(dataUrl, meta = {}) {
+      return {
+        id: `${Date.now()}-${Math.random().toString(16).slice(2, 10)}`,
+        dataUrl,
+        source: meta.source || 'upload',
+        fileName: meta.fileName || '',
+        mimeType: meta.mimeType || 'image/jpeg'
+      };
+    }
+
+    async function persistHighScorePhoto(imageRecord, scores) {
+      if (!imageRecord || !scores || scores.total <= AUTO_SAVE_THRESHOLD) return;
+      try {
+        const response = await fetch('/api/high-score-photos', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            imageDataUrl: imageRecord.dataUrl,
+            fileName: imageRecord.fileName,
+            mimeType: imageRecord.mimeType,
+            source: imageRecord.source,
+            analysisId: imageRecord.id,
+            scores
+          })
+        });
+
+        if (!response.ok) {
+          const result = await response.json().catch(() => ({}));
+          throw new Error(result.error || 'Auto save failed');
+        }
+      } catch (err) {
+        console.error('Auto save failed:', err);
+      }
+    }
+
+    /* ═══════════════════════════════════════
+       FACE API INIT
+    ═══════════════════════════════════════ */
+    async function loadModels() {
+      const orbLoading = document.getElementById('orbLoading');
+      const loadingText = document.getElementById('loadingText');
+      try {
+        loadingText.textContent = '正在加载 AI 模型...';
+        const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model';
+        await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+        await faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL);
+        modelLoaded = true;
+        orbLoading.classList.remove('active');
+      } catch (err) {
+        loadingText.textContent = '模型加载失败，请刷新重试';
+        console.error('Model load error:', err);
+      }
+    }
+    loadModels();
+
+    /* ═══════════════════════════════════════
+       UPLOAD HANDLERS
+    ═══════════════════════════════════════ */
+    const crystalOrb = document.getElementById('crystalOrb');
+    const fileInput = document.getElementById('fileInput');
+    const imagePreview = document.getElementById('imagePreview');
+    const orbLoading = document.getElementById('orbLoading');
+    const loadingText = document.getElementById('loadingText');
+
+    crystalOrb.addEventListener('click', () => fileInput.click());
+
+    crystalOrb.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        fileInput.click();
+      }
+    });
+
+    crystalOrb.addEventListener('dragover', e => {
+      e.preventDefault();
+      crystalOrb.classList.add('drag-over');
+    });
+
+    crystalOrb.addEventListener('dragleave', () => {
+      crystalOrb.classList.remove('drag-over');
+    });
+
+    crystalOrb.addEventListener('drop', e => {
+      e.preventDefault();
+      crystalOrb.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (file) handleFile(file);
+    });
+
+    fileInput.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (file) handleFile(file);
+    });
+
+    /**
+     * 接收图片 dataUrl → 更新水晶球预览 → 触发人脸分析（含已有结果时的确认框）
+     */
+    function applyImageDataUrl(dataUrl, meta = {}) {
+      const nextImageRecord = createImageRecord(dataUrl, meta);
+      const start = () => {
+        currentImageRecord = nextImageRecord;
+        imagePreview.src = dataUrl;
+        crystalOrb.classList.add('has-image');
+        orbLoading.classList.add('active');
+        loadingText.textContent = '正在识别人脸...';
+        runAnalysis(nextImageRecord);
+      };
+      if (currentScores) {
+        showConfirmModal(start);
+      } else {
+        start();
+      }
+    }
+
+    function handleFile(file) {
+      if (!file.type.match(/image\/(jpeg|png|webp)/)) {
+        showError('请上传 JPG、PNG 或 WebP 格式的图片');
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        showError('图片大小不能超过 10MB');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = e => applyImageDataUrl(e.target.result, {
+        source: 'upload',
+        fileName: file.name,
+        mimeType: file.type
+      });
+      reader.readAsDataURL(file);
+    }
+
+    function showError(msg) {
+      loadingText.textContent = msg;
+      orbLoading.classList.add('active');
+      setTimeout(() => orbLoading.classList.remove('active'), 2500);
+    }
+
+    /* ═══════════════════════════════════════
+       AI SCORING & BLENDING
+    ═══════════════════════════════════════ */
+    const BLEND_WEIGHTS = {
+      symmetry:  { ai: 0.55, local: 0.45 },
+      harmony:   { ai: 0.65, local: 0.35 },
+      refinement:{ ai: 0.60, local: 0.40 },
+      aura:      { ai: 0.70, local: 0.30 },
+      charm:     { ai: 0.70, local: 0.30 },
+      total:     { ai: 0.60, local: 0.40 }
+    };
+
+    function clampScore(val) {
+      return Math.max(0, Math.min(99, val));
+    }
+
+    function blendScores(local, ai) {
+      const dims = ['symmetry', 'harmony', 'refinement', 'aura', 'charm'];
+      const blended = {};
+      for (const dim of dims) {
+        const w = BLEND_WEIGHTS[dim];
+        blended[dim] = clampScore(Math.round(w.ai * ai[dim] + w.local * local[dim]));
+      }
+      const blendedTotal = clampScore(Math.round(
+        BLEND_WEIGHTS.total.ai * ai.total + BLEND_WEIGHTS.total.local * local.total
+      ));
+      const dimAvg = clampScore(Math.round(
+        blended.symmetry * 0.20 +
+        blended.harmony * 0.25 +
+        blended.refinement * 0.20 +
+        blended.aura * 0.15 +
+        blended.charm * 0.20
+      ));
+      blended.total = clampScore(Math.round((blendedTotal + dimAvg) / 2));
+      blended.radar = [blended.symmetry, blended.harmony, blended.refinement, blended.aura, blended.charm];
+      return blended;
+    }
+
+    async function compressForAi(dataUrl, maxDimension = 800) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let { width, height } = img;
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) { height = Math.round(height * maxDimension / width); width = maxDimension; }
+            else { width = Math.round(width * maxDimension / height); height = maxDimension; }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.onerror = () => resolve(dataUrl);
+        img.src = dataUrl;
+      });
+    }
+
+    async function fetchAiScores(imageDataUrl) {
+      const compressed = await compressForAi(imageDataUrl);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
+      try {
+        const response = await fetch('/api/ai-analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageDataUrl: compressed }),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (!response.ok) {
+          const result = await response.json().catch(() => ({}));
+          throw new Error(result.error || `AI API error: ${response.status}`);
+        }
+        const data = await response.json();
+        if (!data.ok || !data.scores) throw new Error(data.error || 'AI returned invalid data');
+        return {
+          symmetry: data.scores.symmetry,
+          harmony: data.scores.harmony,
+          refinement: data.scores.refinement,
+          aura: data.scores.aura,
+          charm: data.scores.charm,
+          total: data.scores.total,
+          complement: data.complement || null
+        };
+      } catch (err) {
+        clearTimeout(timeoutId);
+        throw err;
+      }
+    }
+
+    /* ═══════════════════════════════════════
+       FACE ANALYSIS
+    ═══════════════════════════════════════ */
+    async function runAnalysis(imageRecord) {
+      if (isAnalyzing) return;
+      if (!modelLoaded) {
+        loadingText.textContent = 'AI 模型加载中，请稍候...';
+        orbLoading.classList.add('active');
+        const maxWait = Date.now() + 30000;
+        while (!modelLoaded && Date.now() < maxWait) {
+          await new Promise(r => setTimeout(r, 500));
+        }
+        if (!modelLoaded) {
+          showError('模型加载超时，请刷新页面');
+          return;
+        }
+      }
+
+      isAnalyzing = true;
+      const img = new Image();
+      img.onload = async () => {
+        try {
+          loadingText.textContent = '正在识别人脸...';
+
+          const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
+          const [detectionResult, aiResult] = await Promise.allSettled([
+            faceapi.detectSingleFace(img, options).withFaceLandmarks(true),
+            fetchAiScores(imageRecord.dataUrl)
+          ]);
+
+          if (detectionResult.status === 'rejected' || !detectionResult.value) {
+            showError('未检测到人脸，请上传清晰的正面照片');
+            isAnalyzing = false;
+            return;
+          }
+
+          if (currentImageRecord !== imageRecord) { isAnalyzing = false; return; }
+
+          loadingText.textContent = '正在分析颜值特征...';
+          await new Promise(r => setTimeout(r, 300));
+
+          const localScores = computeScores(detectionResult.value);
+          let finalScores;
+          currentAiComplement = null;
+
+          if (aiResult.status === 'fulfilled' && aiResult.value) {
+            currentAiComplement = aiResult.value.complement || null;
+            finalScores = blendScores(localScores, aiResult.value);
+          } else {
+            console.warn('AI scoring unavailable, using local scores only:', aiResult.reason);
+            finalScores = localScores;
+          }
+
+          if (currentImageRecord !== imageRecord) { isAnalyzing = false; return; }
+
+          currentScores = finalScores;
+          void persistHighScorePhoto(imageRecord, finalScores);
+          orbLoading.classList.remove('active');
+          showAnalysisProgress(finalScores);
+
+        } catch (err) {
+          console.error('Analysis error:', err);
+          showError('分析过程出错，请重试');
+          isAnalyzing = false;
+        }
+      };
+      img.src = imageRecord.dataUrl;
+    }
+
+    function computeScores(detection) {
+      const positions = detection.landmarks.positions;
+      const leftEye = positions[36];
+      const rightEye = positions[45];
+      const leftMouth = positions[48];
+      const rightMouth = positions[54];
+      const nose = positions[30];
+
+      const eyeCenterX = (leftEye.x + rightEye.x) / 2;
+      const faceWidth = Math.abs(positions[0].x - positions[16].x);
+
+      const symmetryRatio = Math.max(0, 1 - (Math.abs(nose.x - eyeCenterX) / (faceWidth * 0.1)));
+      const symmetry = Math.min(95, 50 + symmetryRatio * 45 + Math.random() * 5);
+
+      const eyeToNoseRatio = (eyeCenterX - nose.x) / (Math.abs(nose.y - (leftMouth.y + rightMouth.y) / 2) + 0.1);
+      const goldenDiff = Math.abs(eyeToNoseRatio - 0.8);
+      const harmony = Math.min(95, Math.max(40, 75 - goldenDiff * 30 + Math.random() * 8));
+
+      const jawWidth = Math.abs(positions[4].x - positions[12].x);
+      const faceHeight = Math.abs(positions[8].y - positions[27].y);
+      const proportionRatio = jawWidth / (faceHeight + 0.1);
+      const refinement = Math.min(95, Math.max(40, 65 + proportionRatio * 20 + Math.random() * 10));
+
+      const auraRaw = symmetry * 0.4 + harmony * 0.3 + refinement * 0.3;
+      const charmRaw = harmony * 0.4 + refinement * 0.4 + symmetry * 0.2;
+      const aura = Math.min(99, Math.max(0, Math.round(auraRaw)));
+      const charm = Math.min(99, Math.max(0, Math.round(charmRaw)));
+
+      return {
+        symmetry: Math.round(symmetry),
+        harmony: Math.round(harmony),
+        refinement: Math.round(refinement),
+        aura,
+        charm,
+        total: Math.min(99, Math.round((symmetry + harmony + refinement) / 3 + (Math.random() * 6 - 3))),
+        radar: [Math.round(symmetry), Math.round(harmony), Math.round(refinement), aura, charm]
+      };
+    }
+
+    /* ═══════════════════════════════════════
+       ANALYSIS PROGRESS UI
+    ═══════════════════════════════════════ */
+    function showAnalysisProgress(scores) {
+      const analysisSection = document.getElementById('analysisSection');
+      const scoreSection = document.getElementById('scoreSection');
+
+      scoreSection.classList.remove('visible');
+      analysisSection.classList.add('visible');
+
+      document.getElementById('symBar').style.width = '0%';
+      document.getElementById('harBar').style.width = '0%';
+      document.getElementById('refBar').style.width = '0%';
+      document.getElementById('auraBar').style.width = '0%';
+      document.getElementById('charmBar').style.width = '0%';
+      document.getElementById('symVal').textContent = '--';
+      document.getElementById('harVal').textContent = '--';
+      document.getElementById('refVal').textContent = '--';
+      document.getElementById('auraVal').textContent = '--';
+      document.getElementById('charmVal').textContent = '--';
+      ['dimSym', 'dimHar', 'dimRef', 'dimAura', 'dimCharm'].forEach(id => {
+        document.getElementById(id).classList.remove('animate');
+      });
+
+      setTimeout(() => {
+        document.getElementById('dimSym').classList.add('animate');
+        setTimeout(() => {
+          document.getElementById('symBar').style.width = scores.symmetry + '%';
+          document.getElementById('symVal').textContent = scores.symmetry;
+        }, 200);
+      }, 300);
+
+      setTimeout(() => {
+        document.getElementById('dimHar').classList.add('animate');
+        setTimeout(() => {
+          document.getElementById('harBar').style.width = scores.harmony + '%';
+          document.getElementById('harVal').textContent = scores.harmony;
+        }, 200);
+      }, 800);
+
+      setTimeout(() => {
+        document.getElementById('dimRef').classList.add('animate');
+        setTimeout(() => {
+          document.getElementById('refBar').style.width = scores.refinement + '%';
+          document.getElementById('refVal').textContent = scores.refinement;
+        }, 200);
+      }, 1300);
+
+      setTimeout(() => {
+        document.getElementById('dimAura').classList.add('animate');
+        setTimeout(() => {
+          document.getElementById('auraBar').style.width = scores.aura + '%';
+          document.getElementById('auraVal').textContent = scores.aura;
+        }, 200);
+      }, 1800);
+
+      setTimeout(() => {
+        document.getElementById('dimCharm').classList.add('animate');
+        setTimeout(() => {
+          document.getElementById('charmBar').style.width = scores.charm + '%';
+          document.getElementById('charmVal').textContent = scores.charm;
+        }, 200);
+      }, 2300);
+
+      setTimeout(() => {
+        isAnalyzing = false;
+        analysisSection.classList.remove('visible');
+        showScore(scores);
+      }, 4300);
+    }
+
+    /* ═══════════════════════════════════════
+       SCORE REVEAL
+    ═══════════════════════════════════════ */
+    function showScore(scores) {
+      const scoreSection = document.getElementById('scoreSection');
+      const container = document.getElementById('scoreOrbContainer');
+      const ringProgress = document.getElementById('ringProgress');
+
+      scoreSection.classList.add('visible');
+      container.classList.remove('reveal');
+      document.getElementById('scoreNumber').textContent = '0';
+
+      const circumference = 2 * Math.PI * 100;
+      ringProgress.style.strokeDasharray = circumference;
+      ringProgress.style.strokeDashoffset = circumference;
+
+      requestAnimationFrame(() => {
+        container.classList.add('reveal');
+        setTimeout(() => {
+          ringProgress.style.strokeDashoffset = circumference * (1 - scores.total / 100);
+        }, 100);
+        animateNumber(document.getElementById('scoreNumber'), 0, scores.total, 1800);
+        setTimeout(() => drawRadar(scores.radar), 300);
+      });
+    }
+
+    function animateNumber(el, from, to, duration) {
+      const start = performance.now();
+      function step(now) {
+        const elapsed = now - start;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        el.textContent = Math.round(from + (to - from) * eased);
+        if (progress < 1) requestAnimationFrame(step);
+        else {
+          el.textContent = to;
+          showComment(to);
+        }
+      }
+      requestAnimationFrame(step);
+    }
+
+    function showComment(score) {
+      const titleMap = [
+        { max: 50, title: '星尘初萌' },
+        { max: 65, title: '流光初现' },
+        { max: 75, title: '月华如水' },
+        { max: 85, title: '极光璀璨' },
+        { max: 95, title: '神颜天成' },
+        { max: 101, title: '绝世倾城' }
+      ];
+      const fallbackTexts = {
+        50: '如同宇宙中刚刚凝聚的星尘，你的美正在悄然绽放，未来可期。',
+        65: '一抹极光划过夜空，带着淡淡的紫罗兰色，你的魅力正在苏醒。',
+        75: '月光洒在湖面上的温柔，如你一般动人的光彩正在悄然绽放。',
+        85: '北欧上空最绚烂的极光，也不及你此刻眼眸中的万分光彩。',
+        95: '你是极光、是星辰、是造物主最倾注心血的杰作，天颜难觅。',
+        101: '超越极光之美，胜却人间无数，你是这个宇宙最珍贵的奇迹。'
+      };
+      const titleEntry = titleMap.find(c => score < c.max);
+      document.getElementById('commentTitle').textContent = titleEntry.title;
+
+      if (currentAiComplement) {
+        document.getElementById('commentText').textContent = currentAiComplement;
+      } else {
+        const fallbackKey = [...Object.keys(fallbackTexts)].find(k => score < Number(k));
+        document.getElementById('commentText').textContent = fallbackTexts[fallbackKey];
+      }
+
+      // 颜值等级徽章
+      const rankBadge = document.getElementById('rankBadge');
+      const rankIcon = document.getElementById('rankIcon');
+      const rankLetter = document.getElementById('rankLetter');
+      const rankRange = document.getElementById('rankRange');
+      const rankLabel = document.getElementById('rankLabel');
+
+      const rank = scoreToRank(score);
+      rankBadge.className = 'rank-badge rank-' + rank.letter;
+      rankLetter.textContent = rank.letter;
+      rankRange.textContent = rank.range;
+      rankLabel.textContent = rank.label;
+
+      // SSS 额外星火动画
+      if (rank.letter === 'SSS') {
+        rankBadge.style.animation = 'rankShimmer 2s ease-in-out infinite';
+      } else {
+        rankBadge.style.animation = '';
+      }
+    }
+
+    function scoreToRank(score) {
+      if (score >= 95) return { letter: 'SSS', range: '95–99', label: '绝世神颜' };
+      if (score >= 88) return { letter: 'SS',  range: '88–94', label: '极光天颜' };
+      if (score >= 78) return { letter: 'S',   range: '78–87', label: '璀璨仙颜' };
+      if (score >= 68) return { letter: 'A',   range: '68–77', label: '雅致美颜' };
+      if (score >= 55) return { letter: 'B',   range: '55–67', label: '清秀之姿' };
+      if (score >= 40) return { letter: 'C',   range: '40–54', label: '凡尘之姿' };
+      return                        { letter: 'D',   range: '0–39',  label: '璞玉待琢' };
+    }
+
+    /* ═══════════════════════════════════════
+       RADAR CHART
+    ═══════════════════════════════════════ */
+    const RADAR_LABELS = ['对称美', '协调美', '精致美', '气质美', '魅力值'];
+
+    function drawRadar(values) {
+      const canvas = document.getElementById('radarCanvas');
+      const ctx = canvas.getContext('2d');
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      const maxR = 75;
+      const sides = 5;
+      const step = 1 / 80;
+
+      function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+
+      function drawData(ctx, cx, cy, maxR, sides, values, alpha) {
+        ctx.beginPath();
+        for (let i = 0; i <= sides; i++) {
+          const idx = i % sides;
+          const angle = (idx / sides) * Math.PI * 2 - Math.PI / 2;
+          const r = (values[idx] / 100) * maxR * alpha;
+          const x = cx + Math.cos(angle) * r;
+          const y = cy + Math.sin(angle) * r;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxR);
+        gradient.addColorStop(0, `rgba(167,139,250,${0.4 * alpha})`);
+        gradient.addColorStop(0.5, `rgba(34,211,238,${0.2 * alpha})`);
+        gradient.addColorStop(1, `rgba(251,113,133,${0.1 * alpha})`);
+        ctx.fillStyle = gradient;
+        ctx.fill();
+        ctx.beginPath();
+        for (let i = 0; i <= sides; i++) {
+          const idx = i % sides;
+          const angle = (idx / sides) * Math.PI * 2 - Math.PI / 2;
+          const r = (values[idx] / 100) * maxR * alpha;
+          const x = cx + Math.cos(angle) * r;
+          const y = cy + Math.sin(angle) * r;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = `rgba(167,139,250,${0.7 * alpha})`;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        for (let i = 0; i < sides; i++) {
+          const angle = (i / sides) * Math.PI * 2 - Math.PI / 2;
+          const r = (values[i] / 100) * maxR * alpha;
+          const x = cx + Math.cos(angle) * r;
+          const y = cy + Math.sin(angle) * r;
+          ctx.beginPath();
+          ctx.arc(x, y, 3, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(251,191,36,${alpha})`;
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(x, y, 5, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(251,191,36,${0.5 * alpha})`;
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+      }
+
+      let progress = 0;
+      function drawFrame() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (let level = 1; level <= 4; level++) {
+          const r = (level / 4) * maxR;
+          ctx.beginPath();
+          for (let i = 0; i <= sides; i++) {
+            const angle = (i / sides) * Math.PI * 2 - Math.PI / 2;
+            const x = cx + Math.cos(angle) * r;
+            const y = cy + Math.sin(angle) * r;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.strokeStyle = `rgba(167,139,250,${0.1 + level * 0.03})`;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+        for (let i = 0; i < sides; i++) {
+          const angle = (i / sides) * Math.PI * 2 - Math.PI / 2;
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.lineTo(cx + Math.cos(angle) * maxR, cy + Math.sin(angle) * maxR);
+          ctx.strokeStyle = 'rgba(167,139,250,0.15)';
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+        progress += step;
+        const alpha = Math.min(1, easeOut(progress));
+        drawData(ctx, cx, cy, maxR, sides, values, alpha);
+        if (progress < 1) {
+          requestAnimationFrame(drawFrame);
+        } else {
+          // Labels
+          const labelsContainer = document.getElementById('radarLabels');
+          labelsContainer.innerHTML = '';
+          for (let i = 0; i < sides; i++) {
+            const angle = (i / sides) * Math.PI * 2 - Math.PI / 2;
+            const r = maxR + 22;
+            const label = document.createElement('div');
+            label.className = 'radar-label';
+            label.innerHTML = `${RADAR_LABELS[i]}<strong>${values[i]}</strong>`;
+            label.style.left = (cx + Math.cos(angle) * r) + 'px';
+            label.style.top = (cy + Math.sin(angle) * r) + 'px';
+            labelsContainer.appendChild(label);
+          }
+        }
+      }
+      drawFrame();
+    }
+
+    /* ═══════════════════════════════════════
+       TOAST
+    ═══════════════════════════════════════ */
+    function showAppToast(text) {
+      const el = document.getElementById('appToast');
+      el.textContent = text;
+      el.classList.add('show');
+      clearTimeout(showAppToast._t);
+      showAppToast._t = setTimeout(() => el.classList.remove('show'), 2800);
+    }
+
+    /* ═══════════════════════════════════════
+       SHARE
+    ═══════════════════════════════════════ */
+    document.getElementById('shareBtn').addEventListener('click', () => {
+      if (!currentScores) return;
+      const rank = scoreToRank(currentScores.total);
+      const text = `我的 Aurora Face 颜值评分：${currentScores.total}分【${rank.letter}级 · ${rank.label}】"${document.getElementById('commentTitle').textContent}" ✨ 用极光水晶颜值的 AI 颜值评分器测测你的颜值吧！`;
+      if (navigator.share) {
+        navigator.share({ title: 'Aurora Face 颜值评分', text });
+      } else {
+        navigator.clipboard.writeText(text).then(() => {
+          showAppToast('结果已复制到剪贴板！');
+        }).catch(() => {
+          showAppToast('复制失败，请手动复制');
+        });
+      }
+    });
+
+    /* ═══════════════════════════════════════
+       TRY AGAIN / RESET
+    ═══════════════════════════════════════ */
+    function resetAll() {
+      stopCameraStream();
+      currentScores = null;
+      isAnalyzing = false;
+      currentImageRecord = null;
+      currentAiComplement = null;
+      document.getElementById('scoreSection').classList.remove('visible');
+      document.getElementById('analysisSection').classList.remove('visible');
+      crystalOrb.classList.remove('has-image');
+      imagePreview.src = '';
+      fileInput.value = '';
+    }
+
+    document.getElementById('tryAgainBtn').addEventListener('click', () => {
+      showConfirmModal(resetAll);
+    });
+
+    document.getElementById('analysisClose').addEventListener('click', () => {
+      showConfirmModal(resetAll);
+    });
+
+    /* ═══════════════════════════════════════
+       CONFIRM MODAL
+    ═══════════════════════════════════════ */
+    function showConfirmModal(onConfirm) {
+      const modal = document.getElementById('confirmModal');
+      modal.classList.add('active');
+      document.getElementById('modalConfirm').onclick = () => {
+        modal.classList.remove('active');
+        if (onConfirm) onConfirm();
+      };
+      document.getElementById('modalCancel').onclick = () => {
+        modal.classList.remove('active');
+      };
+      modal.onclick = e => {
+        if (e.target === modal) modal.classList.remove('active');
+      };
+    }
+
+    /* ═══════════════════════════════════════
+       CAMERA（getUserMedia + 拍照 → 人脸分析链）
+    ═══════════════════════════════════════ */
+    const cameraVideo = document.getElementById('cameraVideo');
+    const cameraCanvas = document.getElementById('cameraCanvas');
+    const cameraPreviewWrap = document.getElementById('cameraPreviewWrap');
+    const cameraStartBtn = document.getElementById('cameraStartBtn');
+    const cameraCaptureBtn = document.getElementById('cameraCaptureBtn');
+    const cameraStopBtn = document.getElementById('cameraStopBtn');
+    const cameraMsg = document.getElementById('cameraMsg');
+
+    let cameraStream = null;
+
+    function showCameraMsg(text) {
+      cameraMsg.textContent = text;
+      cameraMsg.classList.add('show');
+      clearTimeout(showCameraMsg._t);
+      if (text) {
+        showCameraMsg._t = setTimeout(() => {
+          cameraMsg.classList.remove('show');
+          cameraMsg.textContent = '';
+        }, 4500);
+      } else {
+        cameraMsg.classList.remove('show');
+      }
+    }
+
+    function stopCameraStream() {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(t => t.stop());
+        cameraStream = null;
+      }
+      cameraVideo.srcObject = null;
+      cameraVideo.classList.remove('active');
+      cameraPreviewWrap.classList.remove('has-stream');
+      cameraCaptureBtn.disabled = true;
+      cameraStopBtn.disabled = true;
+      cameraStartBtn.disabled = false;
+    }
+
+    cameraStartBtn.addEventListener('click', async () => {
+      showCameraMsg('');
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showCameraMsg('当前浏览器不支持摄像头，请换用 Chrome / Edge 或检查是否为 HTTPS / localhost');
+        return;
+      }
+      try {
+        stopCameraStream();
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false
+        });
+        cameraVideo.srcObject = cameraStream;
+        await cameraVideo.play();
+        cameraVideo.classList.add('active');
+        cameraPreviewWrap.classList.add('has-stream');
+        cameraCaptureBtn.disabled = false;
+        cameraStopBtn.disabled = false;
+        cameraStartBtn.disabled = true;
+      } catch (err) {
+        showCameraMsg('无法打开摄像头：请授予权限，或检查是否被其他应用占用');
+        console.error(err);
+      }
+    });
+
+    cameraStopBtn.addEventListener('click', () => {
+      stopCameraStream();
+    });
+
+    cameraCaptureBtn.addEventListener('click', () => {
+      if (!cameraStream || cameraVideo.readyState < 2) {
+        showCameraMsg('请先开启摄像头并等待画面就绪');
+        return;
+      }
+      const w = cameraVideo.videoWidth;
+      const h = cameraVideo.videoHeight;
+      if (!w || !h) {
+        showCameraMsg('画面尚未就绪，请稍候再拍');
+        return;
+      }
+      cameraCanvas.width = w;
+      cameraCanvas.height = h;
+      const ctx = cameraCanvas.getContext('2d');
+      ctx.translate(w, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(cameraVideo, 0, 0, w, h);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      const dataUrl = cameraCanvas.toDataURL('image/jpeg', 0.92);
+      stopCameraStream();
+      applyImageDataUrl(dataUrl, {
+        source: 'camera',
+        fileName: `camera-${Date.now()}.jpg`,
+        mimeType: 'image/jpeg'
+      });
+    });
+  </script>
+</body>
+</html>

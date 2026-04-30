@@ -1,0 +1,5 @@
+node_modules/
+saved-photos/
+.env
+runtime/
+*.log
